@@ -1,0 +1,192 @@
+
+<?php
+    if(isset($isActive) && $isActive == 'ISACTIVE'){
+      echo '<div class="notice notice-success"><p><strong>' .
+        'Plugin đã kích hoạt'.
+        '</p></strong></div>';
+      }
+    ?>
+<form id="admin-form" method="post">
+
+  <div class="admin-page">
+    
+    <p>
+      Cấu hình trang web được phép hiển thị trong
+      <a href="https://docs.google.com/spreadsheets/d/<?php echo $WhiteList ?>/edit?gid=638663194#gid=638663194"
+        target="_blank">WhiteList</a>
+      của bạn.
+    </p>
+    <p>
+      Lấy mã kích hoạt trong sheet
+      <a href="https://docs.google.com/spreadsheets/d/<?php echo $ActiveList ?>/edit?gid=638663194#gid=638663194"
+        target="_blank">ActiveList</a>
+      của bạn.
+    </p>
+
+    <div class="input-control">
+      <div style="display: flex; flex-direction: column; gap: 21px;">
+        <span>Home Url</span>
+        <?php
+        if(!isset($isActive) || $isActive != 'ISACTIVE'){
+          echo '<span>Mã kích hoạt</span>';
+        }?>
+
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+        <input style="height: 40px; border: none; color: #141414;" disabled value="<?php echo home_url() ?>" />
+        <?php
+        if(!isset($isActive) || $isActive != 'ISACTIVE'){
+          echo '<input style="height: 40px" id="aciveKey" name="aciveKey" value="" type="password" />';
+        }?>
+      </div>
+    </div>
+    <input name="active" value="true" class="hidden">
+    <input type="submit" id="active" class="hidden" />
+
+    <?php
+      if(!$isActive || $isActive != 'ISACTIVE'){
+        echo '<button onclick="SaveSetting()">Kích hoạt</button>';
+      }
+    ?>
+
+  </div>
+</form>
+
+<script>
+  function SaveSetting() {
+    document.querySelector('#active').click();
+  }
+
+</script>
+
+<style>
+  .admin-page {
+    padding: 24px 12px;
+    width: 800px;
+  }
+
+  .admin-page .input-control {
+    display: flex;
+    gap: 24px;
+    min-width: 500px;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .admin-page .input-control input {
+    min-width: 300px;
+    flex: 1;
+    height: 32px;
+    padding: 4px 12px;
+    outline: none;
+    border-radius: 8px;
+    border-color: #c1c4cc;
+  }
+
+  .admin-page .input-control span {
+    font-size: 14px;
+    font-weight: 600;
+    color: black;
+    border-radius: 8px;
+  }
+
+  .fex-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  #admin-form {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  #admin-form .switch-mode {
+    padding: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: fit-content;
+  }
+</style>
+<style>
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 22px;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: 0.4s;
+    transition: 0.4s;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 2px;
+    background-color: white;
+    -webkit-transition: 0.4s;
+    transition: 0.4s;
+  }
+
+  input:checked+.slider {
+    background-color: #2196f3;
+  }
+
+  input:focus+.slider {
+    box-shadow: 0 0 1px #2196f3;
+  }
+
+  input:checked+.slider:before {
+    -webkit-transform: translateX(20px);
+    -ms-transform: translateX(20px);
+    transform: translateX(20px);
+  }
+
+  /* Rounded sliders */
+  .slider.round {
+    border-radius: 34px;
+  }
+
+  .slider.round:before {
+    border-radius: 50%;
+  }
+
+  button {
+    background-color: #04AA6D;
+    /* Green */
+    border: none;
+    color: white;
+    padding: 12px 32px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 8px;
+  }
+</style>
