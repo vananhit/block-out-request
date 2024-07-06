@@ -6,7 +6,7 @@
   use Google\Client;
   use Google\Service\Sheets;
   // Đường dẫn tới tệp credentials JSON của bạn
-  define('CREDENTIALS_PATH', __DIR__ . '\block-out-request-credentials.json');
+  define('CREDENTIALS_PATH', __DIR__ . DIRECTORY_SEPARATOR .'block-out-request-credentials.json');
   class SheetClient{
     
     public function __construct($spreadsheetId =null) {

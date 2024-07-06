@@ -7,7 +7,6 @@ class UniqueArray {
         if (isset($this->hashMap[$element])) {
             return;
         }
-
         // Thêm phần tử vào mảng
         $this->hashMap[$element] = true;
     }
@@ -52,6 +51,7 @@ function extractLinks($html) {
     if (empty($html)) {
         return [];
     }
+    $pattern =  '(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'; 
     // Tạo một đối tượng DOM từ chuỗi HTML
     $dom = new DOMDocument();
     // Tắt thông báo lỗi khi phân tích HTML
@@ -63,7 +63,10 @@ function extractLinks($html) {
     $anchors = $dom->getElementsByTagName('a');
     // Throw an exception with a specific error code
     foreach ($anchors as $anchor) {
-        $links->insert($anchor->getAttribute('href'));
+        $tmp = $anchor->getAttribute('href');
+        if(preg_match($pattern,$tmp)){
+            $links->insert($tmp);
+        }
     }
 
     // Lặp qua tất cả các phần tử văn bản
@@ -71,7 +74,6 @@ function extractLinks($html) {
     foreach ($textElements as $textElement) {
         // Lấy văn bản của phần tử và kiểm tra xem có chứa liên kết không
         $textContent = $textElement->textContent;
-        $pattern =  '(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})'; 
         if (preg_match_all($pattern, $textContent, $matches)) {
             // Nếu có liên kết trong văn bản, thêm chúng vào mảng liên kết
             foreach ($matches[0] as $link) {

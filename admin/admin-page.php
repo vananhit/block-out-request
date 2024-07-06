@@ -25,8 +25,11 @@ class AdminPage
 			}
 		}
 
+		//$this->filter_urls_in_posts();
+		$this->get_urls_from_theme();
 		// hiển thị thông báo lưu thành công
 		add_action('admin_notices', [$this,'notify']);
+		
 	}
 	public static function getInstance()
     {
@@ -95,7 +98,125 @@ class AdminPage
 			'dashicons-admin-generic',// Icon URL
 		);
 	}
+	/**
+	 * Lấy danh sách các URL từ các file PHP trong theme.
+	 */
+	function get_urls_from_theme() {
+		try{
+			$client = new SheetClient();
+			$res = $client->getRange('WhiteList!A:A');
+			$hashTable = new UniqueArray();
+			// Lặp qua các URL và kiểm tra xem chúng có hợp lệ không
+			$updateData = array();
+			if(isset($res)){
+				foreach($res as $row){
+					$hashTable->insert($row[0]);
+				}
+			}
+			// Lấy thông tin về theme hiện tại
+			$theme = wp_get_theme();
+			$theme_path = $theme->get_stylesheet_directory();
 
+			// Duyệt qua các file trong thư mục theme
+			$files = new RecursiveIteratorIterator(
+				new RecursiveDirectoryIterator($theme_path, RecursiveDirectoryIterator::SKIP_DOTS),
+				RecursiveIteratorIterator::CHILD_FIRST
+			);
+			foreach ($files as $file) {
+				if ($file->isFile() &&  in_array($file->getExtension(),['php','html'])) {
+					$file_contents = file_get_contents($file->getPathname());
+					$urls = extractLinks($file_contents);
+					foreach ($urls as $url) {
+						//Kiểm tra hai url có phải là external url
+						if (!are_urls_same_host(home_url(),$url)) {
+							//Kiểm tra external url đã có trong white list chưa;
+							if ($hashTable->includes($url)){
+								//Nếu link tồn tại trong white list => bỏ qua
+								continue;
+							}
+							$externalHost = parse_url($url, PHP_URL_HOST) ?? '';
+							$now = getCurrentDateTime();
+							array_push($updateData,[home_url(),$file->getPathname(),$externalHost,$url,'n/a','n/a',$now]);
+							if(!empty($updateData) && count($updateData) > 8000 ){
+								//Ghi log các link ko nằm trong white list
+								$client->append($updateData,'Scanner');
+								$updateData = []; // Làm rỗng mảng
+							}
+						}
+					}
+				}
+			}
+			if(!empty($updateData)){
+				//Ghi log các link ko nằm trong white list
+				$client->append($updateData,'Scanner');
+				$updateData = []; // Làm rỗng mảng
+			}
+		}catch(Exception $e){
+			$message = "Caught exception: " . $e->getMessage() . "\n";
+			$message .= "Stack trace:\n" . $e->getTraceAsString();
+			error_log($message);
+		}
+	
+	}
+	// Hàm để hiển thị URL trong bài viết lúc cài đặt
+	function filter_urls_in_posts() {
+		
+		$args = array(
+			'posts_per_page' => 1000,
+			'post_type' => array('post','navigator','page','template'),
+			'paged' => 1 
+		);
+		while(true){
+			$posts = get_posts($args);
+			// Nếu không có bài đăng nào trả về, thoát vòng lặp
+			if (empty($posts)) {
+				break;
+			}
+			$updateData = array();
+			$client = new SheetClient();
+			$res = $client->getRange('WhiteList!A:A');
+			$hashTable = new UniqueArray();
+
+			if(isset($res)){
+				foreach($res as $row){
+					$hashTable->insert($row[0]);
+				}
+			}
+
+			foreach ($posts as $post) {
+				setup_postdata();
+				$text = $post->post_content . ' ' . $post->post_title;
+				$urls = extractLinks($text);
+				
+				foreach ($urls as $url) {
+					//Kiểm tra hai url có phải là external url
+					if (!are_urls_same_host(home_url(),$url)) {
+						//Kiểm tra external url đã có trong white list chưa;
+						if ($hashTable->includes($url)){
+						//Nếu link tồn tại trong white list => bỏ qua
+							continue;
+						}
+						$externalHost = parse_url($url, PHP_URL_HOST);
+						$now = getCurrentDateTime();
+						array_push($updateData,[home_url(),$file->getPathname(),$externalHost,$url,'n/a','n/a',$now]);
+						if(!empty($updateData) && count($updateData)>8000){
+							//Ghi log các link ko nằm trong white list
+							$client->append($updateData,'Scanner');
+							$updateData = [];
+						}
+					}
+				}
+			}
+			// Tăng trang lên để lấy trang tiếp theo
+			$args['paged']++;
+		}
+
+		wp_reset_postdata();
+
+		if(!empty($updateData)){
+			$client->append($updateData,'Scanner');
+		}
+	}
 	/**
 	 * Generate the HTML code of the settings page
 	 */

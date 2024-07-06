@@ -18,7 +18,7 @@ include 'admin/admin-page.php';
 
 $admin = AdminPage::getInstance();
 
-function filter_invalid_urls_in_text($text,$isInsert=false,$isReplace=false){
+function filter_invalid_urls_in_text($text,$isInsert=false,$isReplace=false,$position=''){
     //$urls  = extract_urls_from_text($text);
     $urls = extractLinks($text);
      // Lặp qua các URL và kiểm tra xem chúng có hợp lệ không
@@ -46,7 +46,8 @@ function filter_invalid_urls_in_text($text,$isInsert=false,$isReplace=false){
             $user_login = $current_user->user_login;// tên người dùng
             $externalHost = parse_url($url, PHP_URL_HOST);
             $now = getCurrentDateTime();
-            array_push($updateData,[home_url(),$user_login,$display_name,$user_email,$externalHost,$url,$now]);
+            
+            array_push($updateData,[home_url(),$position||'',$externalHost,$url,$user_login,$now,$now]);
             // Nếu URL không hợp lệ, thay thế nó bằng một chuỗi trắng trong văn bản
             if($isReplace){
                 $text = str_replace($url, '', $text);
@@ -72,13 +73,14 @@ function filter_invalid_urls_in_text($text,$isInsert=false,$isReplace=false){
 function save_post_hook($post_id, $post, $update) {
     try{
         if(in_array($post->post_type, ['page','post'])){
-            filter_invalid_urls_in_text($post->post_title,true,false);
-            filter_invalid_urls_in_text($post->post_content,true,false);
+            $permalink =  get_permalink($post);
+            filter_invalid_urls_in_text($post->post_title,true,false,$permalink);
+            filter_invalid_urls_in_text($post->post_content,true,false,$permalink);
         }
-    }catch(Exception $ex){
-        // $message = "Caught exception: " . $e->getMessage() . "\n";
-        // $message .= "Stack trace:\n" . $e->getTraceAsString();
-        // error_log($message);
+    }catch(Exception $e){
+        $message = "Caught exception: " . $e->getMessage() . "\n";
+        $message .= "Stack trace:\n" . $e->getTraceAsString();
+        error_log($message);
     }
 }
 
@@ -93,9 +95,9 @@ function remove_links_from_post($content) {
         $ans =  filter_invalid_urls_in_text($content,false,true);
         return $ans;
     }catch(Exception $e){
-        // $message = "Caught exception: " . $e->getMessage() . "\n";
-        // $message .= "Stack trace:\n" . $e->getTraceAsString();
-        // error_log($message);
+        $message = "Caught exception: " . $e->getMessage() . "\n";
+        $message .= "Stack trace:\n" . $e->getTraceAsString();
+        error_log($message);
     }
     return $content;
 }
@@ -104,12 +106,12 @@ function catch_site_title_change( $option, $old_value, $new_value ) {
     // Check if the updated option is 'blogname' (site title)
     try{
         if ( $option === 'blogname' ) {
-            filter_invalid_urls_in_text($new_value,true,false);
+            filter_invalid_urls_in_text($new_value,true,false,'Tiêu đề trang');
         }
-    }catch(Exception $ex){
-        // $message = "Caught exception: " . $e->getMessage() . "\n";
-        // $message .= "Stack trace:\n" . $e->getTraceAsString();
-        //error_log($message);
+    }catch(Exception $e){
+        $message = "Caught exception: " . $e->getMessage() . "\n";
+        $message .= "Stack trace:\n" . $e->getTraceAsString();
+        error_log($message);
     }
    
 }
@@ -121,10 +123,10 @@ function modify_blogname_value( $value ) {
             return $value;
         }
         return filter_invalid_urls_in_text($value,false,true);
-    }catch(Exception $ex){
-        // $message = "Caught exception: " . $e->getMessage() . "\n";
-        // $message .= "Stack trace:\n" . $e->getTraceAsString();
-        // error_log($message);
+    }catch(Exception $e){
+        $message = "Caught exception: " . $e->getMessage() . "\n";
+        $message .= "Stack trace:\n" . $e->getTraceAsString();
+        error_log($message);
         return  $value;
     }
 }
@@ -136,20 +138,32 @@ add_action('rest_post_dispatch', function($response, $server, $request) {
 
         // Check if the request is for the Site Editor, Customizer, or specific theme-related endpoints
         if (strpos($route, '/wp/v2/template-parts') !== false || strpos($route, '/wp/v2/navigation') !== false || strpos($route, '/wp/v2/templates') !== false) {
+            
+            $position ='';
+            if(strpos($route, '/wp/v2/template-parts') !== false){
+                $position = '/wp/v2/template-parts';
+            }
+            if(strpos($route, '/wp/v2/navigation') ){
+                $position = '/wp/v2/navigation';
+            }
+            if(strpos($route, '/wp/v2/templates') ){
+                $position = '/wp/v2/templates';
+            }
+            
             $request_body = $request->get_body();
             $payload = json_decode($request_body);
             if(isset($payload)){
                 $content = $payload->content;
-                filter_invalid_urls_in_text($content,true,false);
+                filter_invalid_urls_in_text($content,true,false,$position);
             }
         }
         // Return the modified response
         return $response;
     } catch (Exception $ex) {
-        // Log the exception details
-        // $message = "Caught exception: " . $ex->getMessage() . "\n";
-        // $message .= "Stack trace:\n" . $ex->getTraceAsString();
-        // error_log($message);
+        //Log the exception details
+        $message = "Caught exception: " . $ex->getMessage() . "\n";
+        $message .= "Stack trace:\n" . $ex->getTraceAsString();
+        error_log($message);
         return $response;
     }
 }, 10, 3);
@@ -170,9 +184,9 @@ function add_custom_script() {
             }
         }catch(Exception $ex){
              // Log the exception details
-            // $message = "Caught exception: " . $ex->getMessage() . "\n";
-            // $message .= "Stack trace:\n" . $ex->getTraceAsString();
-            // error_log($message);
+            $message = "Caught exception: " . $ex->getMessage() . "\n";
+            $message .= "Stack trace:\n" . $ex->getTraceAsString();
+            error_log($message);
         }
         ?>
         <script>
