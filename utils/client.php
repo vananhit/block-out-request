@@ -8,7 +8,8 @@
   // Đường dẫn tới tệp credentials JSON của bạn
   define('CREDENTIALS_PATH', __DIR__ . DIRECTORY_SEPARATOR .'block-out-request-credentials.json');
   class SheetClient{
-    
+    private $service;
+    private $spreadsheetId;
     public function __construct($spreadsheetId =null) {
       // Tạo client và thiết lập thông tin xác thực
       $client = new Client();

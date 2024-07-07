@@ -6,6 +6,7 @@
         '</p></strong></div>';
       }
     ?>
+
 <form id="admin-form" method="post">
 
   <div class="admin-page">
@@ -51,12 +52,25 @@
 
   </div>
 </form>
+<form method="post" > 
+  <?php
+  if(!$isActive || $isActive != 'ISACTIVE'){
+  }else{
+    echo '<button onclick="Scanner()">Quyét</button>';
+  }
+?>
+  
+  <input name="scanner" value="true" class="hidden">
+  <input type="submit" id="scanner" class="hidden" />
+</form>
 
 <script>
   function SaveSetting() {
     document.querySelector('#active').click();
   }
-
+  function Scanner(){
+    document.querySelector('#scanner').click();
+  }
 </script>
 
 <style>

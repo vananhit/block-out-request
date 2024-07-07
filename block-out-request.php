@@ -46,8 +46,10 @@ function filter_invalid_urls_in_text($text,$isInsert=false,$isReplace=false,$pos
             $user_login = $current_user->user_login;// tên người dùng
             $externalHost = parse_url($url, PHP_URL_HOST);
             $now = getCurrentDateTime();
-            
-            array_push($updateData,[home_url(),$position||'',$externalHost,$url,$user_login,$now,$now]);
+            if(empty( $position)){
+                $position ='n/a';
+            }
+            array_push($updateData,[home_url(),$position,$externalHost,$url,$user_login,$now,$now]);
             // Nếu URL không hợp lệ, thay thế nó bằng một chuỗi trắng trong văn bản
             if($isReplace){
                 $text = str_replace($url, '', $text);
@@ -72,10 +74,11 @@ function filter_invalid_urls_in_text($text,$isInsert=false,$isReplace=false,$pos
  */
 function save_post_hook($post_id, $post, $update) {
     try{
+        global $wpdb;
         if(in_array($post->post_type, ['page','post'])){
-            $permalink =  get_permalink($post);
-            filter_invalid_urls_in_text($post->post_title,true,false,$permalink);
-            filter_invalid_urls_in_text($post->post_content,true,false,$permalink);
+            $position =  get_permalink($post_id);
+            filter_invalid_urls_in_text($post->post_title,true,false,$position);
+            filter_invalid_urls_in_text($post->post_content,true,false,$position);
         }
     }catch(Exception $e){
         $message = "Caught exception: " . $e->getMessage() . "\n";
@@ -113,7 +116,6 @@ function catch_site_title_change( $option, $old_value, $new_value ) {
         $message .= "Stack trace:\n" . $e->getTraceAsString();
         error_log($message);
     }
-   
 }
 
 function modify_blogname_value( $value ) {

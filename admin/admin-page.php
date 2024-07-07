@@ -18,17 +18,37 @@ class AdminPage
 	private function __construct()
 	{
 		add_action('admin_menu', array($this, 'register_menu_page'));
+		add_action('admin_init', [$this,'my_plugin_init']);
 		if(isset($_REQUEST["page"]) && $_REQUEST["page"] == self::$admin_page_id){
 			if(isset($_REQUEST["active"])){
 				$aciveKey = $_REQUEST["aciveKey"];
 				$this->save_settings($aciveKey);
 			}
+			
 		}
-
-		//$this->filter_urls_in_posts();
-		$this->get_urls_from_theme();
+		
 		// hiển thị thông báo lưu thành công
 		add_action('admin_notices', [$this,'notify']);
+	}
+	function my_plugin_init() {
+		if(isset($_REQUEST['scanner'])){
+			$this->scanner();
+		}
+	}
+	public function scanner(){
+		try{
+			$this->filter_urls_in_posts();
+			$this->get_urls_from_theme();
+			$this->message =
+			'<div class="notice notice-success"><p><strong>' .
+			'Quyét thành công' .
+			'</p></strong></div>';
+		}catch(Exception $e){
+			$this->message =
+				'<div class="error notice is-dismissible"><p><strong>' .
+				'Có lỗi xẩy ra' .
+				'</p></strong></div>' ;
+		}
 		
 	}
 	public static function getInstance()
@@ -61,6 +81,9 @@ class AdminPage
 				}
 				if($isValid){
 					update_option(self::$admin_page_id,'ISACTIVE');
+					$this->message  = "<script> document.addEventListener('DOMContentLoaded', function() {
+						document.getElementById('scanner').click();
+				}); </script>";
 				}else{
 					delete_option(self::$admin_page_id);
 					$this->message =
@@ -94,7 +117,7 @@ class AdminPage
 			'BlockLinkOut',            // Menu title
 			'manage_options',         // Capability
 			self::$admin_page_id,      // Menu slug
-			array($this,'admin_page_html'),      // Function to display the page content
+			array($this,'admin_page_html'),// Function to display the page content
 			'dashicons-admin-generic',// Icon URL
 		);
 	}
@@ -134,7 +157,7 @@ class AdminPage
 								//Nếu link tồn tại trong white list => bỏ qua
 								continue;
 							}
-							$externalHost = parse_url($url, PHP_URL_HOST) ?? '';
+							$externalHost = parse_url($url, PHP_URL_HOST);
 							$now = getCurrentDateTime();
 							array_push($updateData,[home_url(),$file->getPathname(),$externalHost,$url,'n/a','n/a',$now]);
 							if(!empty($updateData) && count($updateData) > 8000 ){
@@ -160,61 +183,72 @@ class AdminPage
 	}
 	// Hàm để hiển thị URL trong bài viết lúc cài đặt
 	function filter_urls_in_posts() {
-		
-		$args = array(
-			'posts_per_page' => 1000,
-			'post_type' => array('post','navigator','page','template'),
-			'paged' => 1 
-		);
-		while(true){
-			$posts = get_posts($args);
-			// Nếu không có bài đăng nào trả về, thoát vòng lặp
-			if (empty($posts)) {
-				break;
-			}
-			$updateData = array();
+		try{
+
+			$args = array(
+				'posts_per_page' => 1000,
+				'post_type' => array('post','navigator','page','template'),
+				'paged' => 1 
+			);
+			$updateData = [];
 			$client = new SheetClient();
 			$res = $client->getRange('WhiteList!A:A');
 			$hashTable = new UniqueArray();
-
 			if(isset($res)){
 				foreach($res as $row){
 					$hashTable->insert($row[0]);
 				}
 			}
 
-			foreach ($posts as $post) {
-				setup_postdata();
-				$text = $post->post_content . ' ' . $post->post_title;
-				$urls = extractLinks($text);
+			while(true){
+				$posts = get_posts($args);
+				// Nếu không có bài đăng nào trả về, thoát vòng lặp
+				if (empty($posts)) {
+					break;
+				}
 				
-				foreach ($urls as $url) {
-					//Kiểm tra hai url có phải là external url
-					if (!are_urls_same_host(home_url(),$url)) {
-						//Kiểm tra external url đã có trong white list chưa;
-						if ($hashTable->includes($url)){
-						//Nếu link tồn tại trong white list => bỏ qua
-							continue;
-						}
-						$externalHost = parse_url($url, PHP_URL_HOST);
-						$now = getCurrentDateTime();
-						array_push($updateData,[home_url(),$file->getPathname(),$externalHost,$url,'n/a','n/a',$now]);
-						if(!empty($updateData) && count($updateData)>8000){
-							//Ghi log các link ko nằm trong white list
-							$client->append($updateData,'Scanner');
-							$updateData = [];
+				foreach ($posts as $post) {
+					setup_postdata($post);
+					$text = $post->post_content . ' ' . $post->post_title;
+					$urls = extractLinks($text);
+					$post_date_gmt = $post->post_modified_gmt; // Lấy thời gian UTC của bài viết
+					$date = new DateTime( $post_date_gmt, new DateTimeZone( 'GMT' ) );
+					$date->setTimezone( new DateTimeZone( 'Asia/Ho_Chi_Minh' ) );
+					$post_date = $date->format( 'Y-m-d H:i:s' );
+					$author_data = get_userdata($post->post_author);
+					$author_display_name = $author_data->display_name;
+					foreach ($urls as $url) {
+						//Kiểm tra hai url có phải là external url
+						if (!are_urls_same_host(home_url(),$url)) {
+							//Kiểm tra external url đã có trong white list chưa;
+							if ($hashTable->includes($url)){
+							//Nếu link tồn tại trong white list => bỏ qua
+								continue;
+							}
+							$externalHost = parse_url($url, PHP_URL_HOST);
+							$now = getCurrentDateTime();
+							array_push($updateData,[home_url(),get_permalink($post),$externalHost,$url,$author_display_name,$post_date ,$now]);
+							if(!empty($updateData) && count($updateData)>8000){
+								//Ghi log các link ko nằm trong white list
+								$client->append($updateData,'Scanner');
+								$updateData = [];
+							}
 						}
 					}
 				}
+				// Tăng trang lên để lấy trang tiếp theo
+				$args['paged']++;
 			}
-			// Tăng trang lên để lấy trang tiếp theo
-			$args['paged']++;
-		}
 
-		wp_reset_postdata();
+			wp_reset_postdata();
 
-		if(!empty($updateData)){
-			$client->append($updateData,'Scanner');
+			if(!empty($updateData)){
+				$client->append($updateData,'Scanner');
+			}
+		}catch(Exception $e){
+			$message = "Caught exception: " . $e->getMessage() . "\n";
+			$message .= "Stack trace:\n" . $e->getTraceAsString();
+			error_log($message);
 		}
 	}
 	/**
